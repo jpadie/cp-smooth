@@ -87,7 +87,7 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
         buffer_name: "",
         report_mode: 0,
         work_mode: 0,
-        controller_units: null,
+        controller_units: 'mm',
         status: "Offline",
         version: "0.8",
         q_count: 0,
@@ -278,22 +278,25 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
             });
         },
         updateWorkUnits: function(units){
-            if(units==="mm")
-                this.work_mode = 0;
-            else if(units==="inch")
-                this.work_mode = 1;
-            console.log("Smoothie: Updated Work Units - " + this.work_mode);
-            //update report units if they have changed
-            this.updateReportUnits();
+			var setting = units === 'mm' ? 0 : 1;
+			if(this.work_mode !== setting){
+				this.work_mode = setting; 
+	            console.log("Smoothie: Updated Work Units - " + this.work_mode);//update report units if they have changed
+            }
+			this.updateReportUnits();
         },
         updateReportUnits: function(){
-            if(this.config[13] !== undefined){
-                if(this.config[13][0] === 0)
-                    this.report_mode = 0;
-                else if(this.config[13][0] === 1)
-                    this.report_mode = 1;
-            }
-            console.log("Smoothie: Updated Report Units - " + this.report_mode);
+			if(this.work_mode == undefined){
+				this.report_mode = 0; //mm
+				console.log("Smoothie: Updated Report Units - " + this.report_mode);
+			} else {
+				if(this.report_mode != this.work_mode){
+					this.report_mode = this.work_mode;
+					console.log("Smoothie: Updated Report Units - " + this.report_mode);
+				}
+			}
+            
+            
         },
         //formerly queryControllerForStatus
         openController: function(isWithDelay) {
@@ -302,9 +305,10 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
             //wait three second for arduino initialization before requesting the grbl config variables.
             setTimeout(function() {
                 chilipeppr.publish("/com-chilipeppr-widget-serialport/requestSingleSelectPort",""); //Request port info
-                if(that.version === "")
+                if(that.version === ""){
                     that.sendCode("version\n"); //send request for grbl init line (grbl was already connected to spjs when chilipeppr loaded and no init was sent back.
-                that.sendCode("$G\n"); //get grbl params
+                }
+				that.sendCode("$G\n"); //get grbl params
                 that.sendCode("?\n"); //get current position
                 that.sendCode("$#\n"); //get any offsets
                 //wait one additional second before checking for what reporting units grbl is configured for.
@@ -584,12 +588,15 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
                         console.log("we have a unit change. publish it. units:", this.controller_units);
                         chilipeppr.publish("/com-chilipeppr-interface-cnccontroller/units", this.controller_units);
                         //resend coordinates
-                        if(this.last_work.x !== null)
+                        if(this.last_work.x !== null){
                             this.publishAxisStatus(this.last_work);
-                        else if(this.last_machine.x !== null)
+                        }
+						else if(this.last_machine.x !== null){
                             this.publishAxisStatus(this.last_machine);
-                        else
+                        }
+						else{
                             this.publishAxisStatus({"x":"x","y":"y","z":"z"});
+						}
                     } else if((this.controller_units !== "inch" && msg_array[3] === "G20")){ 
                         this.controller_units = "inch";
                         console.log("we have a unit change. publish it. units:", this.controller_units);
