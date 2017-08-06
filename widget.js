@@ -44,14 +44,16 @@ function Queue(){var e=[];var t=0;this.getLength=function(){return e.length-t};t
 
 cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie"], function () {
     return {
-        id: "com-chilipeppr-widget-grbl",
+        id: "com-chilipeppr-widget-grbl-smoothie",
         implements: { 
             "com-chilipeppr-interface-cnccontroller" : "The CNC Controller interface is a loosely defined set of publish/subscribe signals. The notion of an interface is taken from object-oriented programming like Java where an interface is defined and then specific implementations of the interface are created. For the sake of a Javascript mashup like what ChiliPeppr is, the interface is just a rule to follow to publish signals and subscribe to signals by different top-level names than the ID of the widget or element implementing the interface. Most widgets/elements will publish and subscribe on their own ID. In this widget we are publishing/subscribing on an interface name. If another controller like Grbl is defined by a member of the community beyond this widget for GRBL, this widget can be forked and used without other widgets needing to be changed and the user could pick a Grbl or GRBL implementation of the interface."
         },
-        url: "http://fiddle.jshell.net/jarret/b5L2rtgc/show/light/",
-        fiddleurl: "http://jsfiddle.net/jarret/b5L2rtgc/",
-        name: "Widget / GRBL",
-        desc: "This widget shows the GRBL Buffer so other widgets can limit their flow of sending commands and other specific GRBL features.",
+       	url: "(auto fill by runme.js)", // The final URL of the working widget as a single HTML file with CSS and Javascript inlined. You can let runme.js auto fill this if you are using Cloud9.
+        githuburl: "(auto fill by runme.js)", // The backing github repo
+        testurl: "(auto fill by runme.js)", // The standalone working widget so can view it working by itself
+        fiddleurl: "(auto fill by runme.js)",
+        name: "Widget / Smoothie (GRBL)",
+        desc: "This widget shows the GRBL Buffer as used by SmoothieBoards so other widgets can limit their flow of sending commands and other specific GRBL features.",
         publish: {
             '/com-chilipeppr-interface-cnccontroller/feedhold' : "Feedhold (Emergency Stop). This signal is published when user hits the Feedhold button for an emergency stop of the GRBL. Other widgets should see this and stop sending all commands such that even when the plannerresume signal is received when the user clears the queue or cycle starts again, they have to manually start sending code again. So, for example, a Gcode sender widget should place a pause on the sending but allow user to unpause.",
             '/com-chilipeppr-interface-cnccontroller/plannerpause' : "This widget will publish this signal when it determines that the planner buffer is too full on the GRBL and all other elements/widgets need to stop sending data. You will be sent a /plannerresume when this widget determines you can start sending again. The GRBL has a buffer of 28 slots for data. You want to fill it up with around 12 commands to give the planner enough data to work on for optimizing velocities of movement. However, you can't overfill the GRBL or it will go nuts with buffer overflows. This signal helps you fire off your data and not worry about it, but simply pause the sending of the data when you see this signal. This signal does rely on the GRBL being in {qv:2} mode which means it will auto-send us a report on the planner every time it changes. This widget watches for those changes to generate the signal. The default setting is when we hit 12 remaining planner buffer slots we will publish this signal.",
@@ -87,7 +89,7 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
         work_mode: 0,
         controller_units: null,
         status: "Offline",
-        version: "",
+        version: "0.8",
         q_count: 0,
         alarm: false,
         offsets: {"x": 0.000, "y": 0.000, "z": 0.000},
@@ -185,7 +187,7 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
         options: null,
         setupUiFromCookie: function() {
             // read vals from cookies
-            var options = $.cookie('com-chilipeppr-widget-grbl-options');
+            var options = $.cookie('com-chilipeppr-widget-grbl-smoothie-options');
             
             if (true && options) {
                 options = $.parseJSON(options);
@@ -204,7 +206,7 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
             var optionsStr = JSON.stringify(options);
             //console.log("GRBL: saving options:", options, "json.stringify:", optionsStr);
             // store cookie
-            $.cookie('com-chilipeppr-widget-grbl-options', optionsStr, {
+            $.cookie('com-chilipeppr-widget-grbl-smoothie-options', optionsStr, {
                 expires: 365 * 10,
                 path: '/'
             });
@@ -230,9 +232,9 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
         btnSetup: function() {
             // chevron hide body
             var that = this;
-            $('#com-chilipeppr-widget-grbl .hidebody').click(function(evt) {
+            $('#com-chilipeppr-widget-grbl-smoothie .hidebody').click(function(evt) {
                 //console.log("GRBL: hide/unhide body");
-                if ($('#com-chilipeppr-widget-grbl .panel-body .stat-row').hasClass('hidden')) {
+                if ($('#com-chilipeppr-widget-grbl-smoothie .panel-body .stat-row').hasClass('hidden')) {
                     // it's hidden, unhide
                     that.showBody(evt);
                 } else {
@@ -240,26 +242,26 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
                     that.hideBody(evt);
                 }
             });
-            $('#com-chilipeppr-widget-grbl .grbl-feedhold').click(function() {
+            $('#com-chilipeppr-widget-grbl-smoothie .grbl-feedhold').click(function() {
                 //console.log("GRBL: feedhold");
                 that.sendCode('!');
                 // announce to other widgets that user hit e-stop
                 chilipeppr.publish('/com-chilipeppr-interface-cnccontroller/plannerpause', "");
                 chilipeppr.publish("/com-chilipeppr-interface-cnccontroller/feedhold", "");
             });
-            $('#com-chilipeppr-widget-grbl .grbl-cyclestart').click(function() {
+            $('#com-chilipeppr-widget-grbl-smoothie .grbl-cyclestart').click(function() {
                 //console.log("GRBL: cyclestart");
                 that.sendCode('~');
                 //may want to check if buffer queue is >128 before resuming planner.
                 chilipeppr.publish('/com-chilipeppr-interface-cnccontroller/plannerresume', ""); 
             });
             
-            $('#com-chilipeppr-widget-grbl .grbl-verbose').click(function() {
+            $('#com-chilipeppr-widget-grbl-smoothie .grbl-verbose').click(function() {
                 //console.log("GRBL: manual status update");
-                $('#com-chilipeppr-widget-grbl .grbl-verbose').toggleClass("enabled");
+                $('#com-chilipeppr-widget-grbl-smoothie .grbl-verbose').toggleClass("enabled");
             });
             
-            $('#com-chilipeppr-widget-grbl .grbl-reset').click(function() {
+            $('#com-chilipeppr-widget-grbl-smoothie .grbl-reset').click(function() {
                 //console.log("GRBL: reset");
                 that.sendCode(String.fromCharCode(24));
                 chilipeppr.publish('/com-chilipeppr-interface-cnccontroller/plannerresume', "");
@@ -267,7 +269,7 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
 
             $('#com-chilipeppr-widget-grbl-btnoptions').click(this.showConfigModal.bind(this));
             
-            $('#com-chilipeppr-widget-grbl .btn-toolbar .btn').popover({
+            $('#com-chilipeppr-widget-grbl-smoothie .btn-toolbar .btn').popover({
                 delay: 500,
                 animation: true,
                 placement: "auto",
@@ -275,36 +277,12 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
                 container: 'body'
             });
         },
-        showConfigModal: function() {
-            $('#grbl-config-div').empty();
-            
-            this.config.forEach(function(config_element,index_num) {
-                $('#grbl-config-div').append('<div class="input-group"  style="width:400px;margin-bottom:2px;"><div class="input-group-addon" style="width:40px;padding:0px 6px;">$' + index_num + '</div><input class="form-control" style="height:20px;padding:0px 6px;width:100px;" id="com-chilipeppr-widget-grbl-config-' + index_num +'" value="' + config_element[0] + '"/><span style="margin-left:10px;">' + config_element[1] + '</span></div>');},this);
-
-            $('#grbl-config-div').append('<br/><button class="btn btn-xs btn-default save-config">Save Settings To GRBL</button>');
-            $('.save-config').click(this.saveConfigModal.bind(this));
-            $('#com-chilipeppr-widget-grbl-modal').modal('show');
-        },
-        hideConfigModal: function() {
-            $('#com-chilipeppr-widget-grbl-modal').modal('hide');
-        },
-        saveConfigModal: function() {
-            console.log("GRBL: Save Settings");
-
-            this.config.forEach(function(config_element,index_num){
-                var command = '$' + index_num + '=' + $('#com-chilipeppr-widget-grbl-config-' + index_num).val() + '\n';
-                this.config[index_num][0] = $('#com-chilipeppr-widget-grbl-config-' + index_num).val();
-                this.sendCode(command);
-            },this);
-            console.log(this.config);
-            return true;
-        },
         updateWorkUnits: function(units){
             if(units==="mm")
                 this.work_mode = 0;
             else if(units==="inch")
                 this.work_mode = 1;
-            console.log("GRBL: Updated Work Units - " + this.work_mode);
+            console.log("Smoothie: Updated Work Units - " + this.work_mode);
             //update report units if they have changed
             this.updateReportUnits();
         },
@@ -315,7 +293,7 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
                 else if(this.config[13][0] === 1)
                     this.report_mode = 1;
             }
-            console.log("GRBL: Updated Report Units - " + this.report_mode);
+            console.log("Smoothie: Updated Report Units - " + this.report_mode);
         },
         //formerly queryControllerForStatus
         openController: function(isWithDelay) {
@@ -325,9 +303,10 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
             setTimeout(function() {
                 chilipeppr.publish("/com-chilipeppr-widget-serialport/requestSingleSelectPort",""); //Request port info
                 if(that.version === "")
-                    that.sendCode("*init*\n"); //send request for grbl init line (grbl was already connected to spjs when chilipeppr loaded and no init was sent back.
-                that.sendCode("*status*\n"); //send request for initial status response.
-                that.sendCode("$$\n"); //get grbl params
+                    that.sendCode("version\n"); //send request for grbl init line (grbl was already connected to spjs when chilipeppr loaded and no init was sent back.
+                that.sendCode("$G\n"); //get grbl params
+                that.sendCode("?\n"); //get current position
+                that.sendCode("$#\n"); //get any offsets
                 //wait one additional second before checking for what reporting units grbl is configured for.
                 setTimeout(function() {
                     that.updateReportUnits();
@@ -351,20 +330,17 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
             this.status = "Offline";
             chilipeppr.publish('/com-chilipeppr-interface-cnccontroller/status',this.status);
             $('.com-chilipeppr-grbl-state').text(this.status);
-            this.version = "";
-            $('#com-chilipeppr-widget-grbl .panel-title').text("GRBL");
+            this.version = "0.8";
+            $('#com-chilipeppr-widget-grbl .panel-title').text("SmoothieBoard");
             this.offsets = {"x": 0.000, "y": 0.000, "z": 0.000};
             this.last_machine= {"x":0.000, "y": 0.000, "z": 0.000};
             this.last_work = {"x":0.000, "y": 0.000, "z": 0.000};
             this.publishAxisStatus({"posx":0.000, "posy":0.000,"posz":0.000});
         },
         getControllerInfo: function(){
-            var json = {
-                D: "$G\n",
-                Id: "status"
-            };
-            if(!this.alarm) //only send if we're not in an alarm state.
-                chilipeppr.publish("/com-chilipeppr-widget-serialport/jsonSend", json);
+            if(!this.alarm){ //only send if we're not in an alarm state.
+            	this.sendCode("$G\n");
+            }
         },
         trackGcodeLines: function(){
             if(this.g_status_reports !== null){
@@ -387,6 +363,12 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
                         that.getControllerInfo(); //send a $G every 2 seconds
                 }, 2000);
             }
+        },
+        sendReset: function(){
+	        this.sendCode("M999\n");
+        },
+        resetClick: function(){
+        	this.sendReset();
         },
         grblResponse: function (recvline) {
             //console.log("GRBL: Message Received - " + recvline.dataline);
@@ -428,10 +410,10 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
                             chilipeppr.publish('/com-chilipeppr-interface-cnccontroller/status',this.status);
                             if(this.alarm !== true && this.status === "Alarm"){
                                 this.alarm = true;
-                                $('.stat-state').text("Alarm - Click To Reset (CTRL+X)");
+                                $('.stat-state').text("Alarm - Click To Reset");
                                 var that = this;
                                 $('.stat-state').click(function(){
-                                    that.sendCode(String.fromCharCode(24));
+                                    that.resetClick();
                                 });
                                 $(".stat-state").hover(function() {
                                     $(this).css('cursor','pointer');
@@ -446,7 +428,6 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
                                 $('.stat-state').text(this.status.charAt(0).toUpperCase() + this.status.slice(1)); //Update UI
                                 $('#stat-state-background-box').css('background-color', '#f5f5f5');
                             }
-                            
                             
                         }
                     
@@ -508,15 +489,16 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
                         this.publishAxisStatus({"x":"x","y":"y","z":"z"});
 
                 }
-                else if(msg.indexOf("Grbl") >= 0){
+                /*else if(msg.indexOf("Grbl") >= 0){
                     //if this is not the first init line, warn the user grbl has been reset
                     if(this.version !== "")
-                        chilipeppr.publish("/com-chilipeppr-elem-flashmsg/flashmsg", "GRBL Widget", "GRBL has been reset - temporary work coordinate and tool offsets have been lost.");
+                        chilipeppr.publish("/com-chilipeppr-elem-flashmsg/flashmsg", "Smoothie Widget", "GRBL has been reset - temporary work coordinate and tool offsets have been lost.");
                     
                     chilipeppr.publish("/com-chilipeppr-widget-gcode/stop", true); //stops gcode widget since grbl just reset.
                     this.version = msg.split(" ")[1];
                     $('#com-chilipeppr-widget-grbl .panel-title').text("GRBL (" + this.version + ")"); //update ui  
-                }
+                }*/
+                /*
                 else if(msg.search(/^\$[0-9][0-9]*=/g) >= 0){ //is a config report ($0=,$1=...etc)
                     var tmp = msg.split(/ (.+)/); //break out config and description
                     var val = tmp[0].replace("$","").split("="); //split config into variable id and value
@@ -524,26 +506,29 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
                     this.config[parseInt(val[0],10)] = [parseFloat(val[1]), tmp[1]]; //save config value and description
                     //console.log("GRBL: this.config = ");
                     //console.log(this.config[0]);
-                }
+                }*/
+                /*
                 else if(msg.indexOf("ALARM: Probe fail") >= 0){
                     this.alarm = true;
-                    chilipeppr.publish("/com-chilipeppr-elem-flashmsg/flashmsg", "GRBL Widget", "Probe Failed - Alarm State!");
+                    chilipeppr.publish("/com-chilipeppr-elem-flashmsg/flashmsg", "Smoothie Widget", "Probe Failed - Alarm State!");
                     chilipeppr.publish("/com-chilipeppr-interface-cnccontroller/proberesponse", "alarm");
                     //should we clear the buffer here as well, or resend queued commands afteras a reset to grbl is needed to clear this which will clear all buffered items?
                 }
+                */
+                /*
                 else if(msg.indexOf("ALARM: Hard/soft limit") >= 0 || msg.indexOf("ALARM: Soft limit") >= 0 || msg.indexOf("ALARM: Hard limit") >= 0){
                     this.alarm = true;
                     this.restartStatusInterval();
                     
-                    chilipeppr.publish("/com-chilipeppr-elem-flashmsg/flashmsg", "GRBL Widget", "Alarm! GRBL has exceeded a hard or soft limit.");
+                    chilipeppr.publish("/com-chilipeppr-elem-flashmsg/flashmsg", "Smoothie Widget", "Alarm! GRBL has exceeded a hard or soft limit.");
                     chilipeppr.publish("/com-chilipeppr-widget-gcode/stop", true); //stops gcode widget since grbl just reset.
                     this.clearBuffer();
                     
-                    $('.stat-state').text("Alarm - Click To Reset (CTRL+X)");
+                    $('.stat-state').text("Alarm - Click To Reset");
                     var that = this;
                     $('.stat-state').unbind("click");
                     $('.stat-state').click(function(){
-                        that.sendCode(String.fromCharCode(24));
+                        that.resetClick();
                     });
                     $(".stat-state").hover(function() {
                         $(this).css('cursor','pointer');
@@ -554,20 +539,21 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
                     
                     this.addError("Alarm", msg);
                     //update error count;
-                }    
+                }*/
+                /*
                 else if(msg.indexOf("'$X' to unlock") >= 0){
                     this.alarm = true;
                     this.restartStatusInterval();
-                    chilipeppr.publish("/com-chilipeppr-elem-flashmsg/flashmsg", "GRBL Widget", "GRBL is locked - $X to unlock");
+                    chilipeppr.publish("/com-chilipeppr-elem-flashmsg/flashmsg", "Smoothie Widget", "SmoothieBoard is locked - M999 to unlock");
                     
                     chilipeppr.publish("/com-chilipeppr-widget-gcode/stop", true); //stops gcode widget since grbl just reset.
                     this.clearBuffer();
                     
-                    $('.stat-state').html("Alarm - Click To Unlock ($X)");
+                    $('.stat-state').html("Alarm - Click To Unlock");
                     var that = this;
                     $('.stat-state').unbind("click");
                     $('.stat-state').click(function(){
-                        that.sendCode("$X\n");
+                        that.resetClick();
                     });
                     $(".stat-state").hover(function() {
                         $(this).css('cursor','pointer');
@@ -579,13 +565,14 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
                     this.addError("Alarm", msg);
                     //update error count;
                 }
+                */
                 else if(msg.indexOf("Enabled") >= 0){
                     //action check mode on
-                    chilipeppr.publish("/com-chilipeppr-elem-flashmsg/flashmsg", "GRBL Widget", "GRBL is now in passive gcode checking mode.");
+                    chilipeppr.publish("/com-chilipeppr-elem-flashmsg/flashmsg", "Smoothie Widget", "SmoothieBoard is now in passive gcode checking mode.");
                 }
                 else if(msg.indexOf("Disabled") > 0){
                     //action check mode off
-                    chilipeppr.publish("/com-chilipeppr-elem-flashmsg/flashmsg", "GRBL Widget", "GRBL is now in active run mode.");
+                    chilipeppr.publish("/com-chilipeppr-elem-flashmsg/flashmsg", "Smoothie Widget", "SmoothieBoard is now in active run mode.");
                 }
                 else if(msg.search(/^\[/g) >= 0 && msg.indexOf(":") < 0){ //some config information is being returned - figure out what.
                     
@@ -636,7 +623,7 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
         sendCode: function (sendline){
             //chilipeppr.unsubscribe("/com-chilipeppr-widget-serialport/send", this, this.bufferPush); //unsubscribe before publishing to serial port
             chilipeppr.publish("/com-chilipeppr-widget-serialport/send", sendline); //send to serial port 
-            console.log("GRBL: Code Sent - " + sendline);
+            console.log("Smoothie: Code Sent - " + sendline);
             //chilipeppr.subscribe("/com-chilipeppr-widget-serialport/send", this, this.bufferPush, 1); //resubscribe with top priority
         },
         
@@ -678,10 +665,9 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
             this.err_log[i] = line.toString() + " - " + msg;
         },
         forkSetup: function () {
-            var topCssSelector = '#com-chilipeppr-widget-grbl';
-            
-            //$(topCssSelector + ' .fork').prop('href', this.fiddleurl);
-            //$(topCssSelector + ' .standalone').prop('href', this.url);
+            var topCssSelector = '#com-chilipeppr-widget-grbl-smoothie';
+            $(topCssSelector + ' .fork').prop('href', this.githuburl);
+            $(topCssSelector + ' .standalone').prop('href', this.url);
             //$(topCssSelector + ' .fork-name').html(this.id);
             $(topCssSelector + ' .panel-title').popover({
                 title: this.name,
@@ -695,9 +681,9 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
             
             var that = this;
             
-            chilipeppr.load("http://fiddle.jshell.net/chilipeppr/zMbL9/show/light/", function () {
+            chilipeppr.load(this.url, function () {
                 require(['inline:com-chilipeppr-elem-pubsubviewer'], function (pubsubviewer) {
-                    pubsubviewer.attachTo($('#com-chilipeppr-widget-grbl .panel-heading .dropdown-menu'), that);
+                    pubsubviewer.attachTo($('#com-chilipeppr-widget-grbl-smoothie .panel-heading .dropdown-menu'), that);
                 });
             });
             
