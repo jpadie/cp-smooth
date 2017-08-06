@@ -81,6 +81,15 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
         //g_count: 0,
         //l_count: 0,
         //interval_id: 0,
+		gCodeModalStates: {
+        	motion: new RegExp("G(0|00|01|02|03|1|2|3) ","i"),
+        	plane: new RegExp("G(17|18|19)","i"),
+        	coords: new RegExp("G(20|21)","i"),
+        	spindle: new RegExp("S\\d\\.([0-9]*)","i"),
+        	feedrate: new RegExp("F([0-9]*\\.?[0-9]*) ","i"),
+        	wcs: new RegExp("G(53|54|55|56|57|58|59)","i"),
+        	distance: new RegExp("G(90|91)","i")
+		},
         config: [],
         err_log: [],
         //config_index: [],
@@ -278,7 +287,7 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
             });
         },
         updateWorkUnits: function(units){
-			var setting = units === 'mm' ? 0 : 1;
+			var setting = (units === 'mm' ? 0 : 1);
 			if(this.work_mode !== setting){
 				this.work_mode = setting; 
 	            console.log("Smoothie: Updated Work Units - " + this.work_mode);//update report units if they have changed
@@ -295,8 +304,6 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
 					console.log("Smoothie: Updated Report Units - " + this.report_mode);
 				}
 			}
-            
-            
         },
         //formerly queryControllerForStatus
         openController: function(isWithDelay) {
@@ -308,8 +315,8 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
                 if(that.version === ""){
                     that.sendCode("version\n"); //send request for grbl init line (grbl was already connected to spjs when chilipeppr loaded and no init was sent back.
                 }
-				that.sendCode("$G\n"); //get grbl params
                 that.sendCode("?\n"); //get current position
+				that.sendCode("$G\n"); //get grbl params
                 that.sendCode("$#\n"); //get any offsets
                 //wait one additional second before checking for what reporting units grbl is configured for.
                 setTimeout(function() {
@@ -317,10 +324,6 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
                 }, 1000);
 
                 that.restartStatusInterval();  //Start the $G tracking loop
-                
-                //that.g_status_reports = setInterval(function(){
-                //    that.getControllerInfo(); //send a $G every 2 seconds
-                //}, 2000);
             }, 3000);
         },
         closeController: function(isWithDelay) {
@@ -579,50 +582,62 @@ cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie
                     chilipeppr.publish("/com-chilipeppr-elem-flashmsg/flashmsg", "Smoothie Widget", "SmoothieBoard is now in active run mode.");
                 }
                 else if(msg.search(/^\[/g) >= 0 && msg.indexOf(":") < 0){ //some config information is being returned - figure out what.
-                    
-                    msg = msg.replace(/\[|\]|\n/g, ""); //remove brackets
-                    var msg_array = msg.split(/\s|,|:/g); //split to array on space, comma, or colon
-                    //check for units change, save new units state and publish units to other widgets
-                    if((this.controller_units !== "mm" && msg_array[3] === "G21")){ 
-                        this.controller_units = "mm";
-                        console.log("we have a unit change. publish it. units:", this.controller_units);
-                        chilipeppr.publish("/com-chilipeppr-interface-cnccontroller/units", this.controller_units);
-                        //resend coordinates
-                        if(this.last_work.x !== null){
-                            this.publishAxisStatus(this.last_work);
-                        }
-						else if(this.last_machine.x !== null){
-                            this.publishAxisStatus(this.last_machine);
-                        }
-						else{
-                            this.publishAxisStatus({"x":"x","y":"y","z":"z"});
+                    //example [G0 G54 G17 G21 G90 G94 M0 M5 M9 T0 F2000.0000 S0.8000]
+                   
+					$.each(this.gCodeModalStates, function(key, value){
+						if(value.test(msg)){
+							var result = value.exec(msg);
+							switch(key){
+								case 'coords':
+									$('.stat-units').text("G" + result[1] );
+									var dirty = false;
+									if(parseInt(result[1]) == 20){
+										//inches
+										if(this.controller_units != "inch"){
+											dirty = true;
+											this.controller_units = 'inch';
+										}
+									} else { //must be 21
+										//mm
+										if(this.controller_units != "mm"){
+											dirty = true;
+											this.controller_units = 'mm';
+										}
+									}
+									if(dirty){
+										console.log("we have a unit change. publish it. units:", this.controller_units);
+				                        chilipeppr.publish("/com-chilipeppr-interface-cnccontroller/units", this.controller_units);
+										//resend coordinates
+										if(this.last_work.x !== null){
+											this.publishAxisStatus(this.last_work);
+										}
+										else if(this.last_machine.x !== null){
+											this.publishAxisStatus(this.last_machine);
+										}
+									}
+								break;
+								case 'wcs':
+									$('.stat-wcs').text("G" + result[1]);
+									chilipeppr.publish("/com-chilipeppr-interface-cnccontroller/coords",{coord:"G"+result[1], coordNum: parseInt(result[1])});
+								break;
+								case 'motion':
+									$('.stat-motion').text("G" + result[1]);
+								break;
+								case 'plane':
+									$('.stat-plane').text("G" + result[1]);
+								break;
+								case 'spindle':
+									$('.stat-spindle').text(result[1]);
+								break;
+								case 'feedrate':
+									$('.stat-feedrate').text(result[1].toFixed(2));
+								break;
+								case 'distance':
+									$('.stat-distance').text("G" + result[1]);	
+								break;
+							}
 						}
-                    } else if((this.controller_units !== "inch" && msg_array[3] === "G20")){ 
-                        this.controller_units = "inch";
-                        console.log("we have a unit change. publish it. units:", this.controller_units);
-                        chilipeppr.publish("/com-chilipeppr-interface-cnccontroller/units", this.controller_units);
-                        
-                        //resend coordinates
-                        if(this.last_work.x !== null)
-                            this.publishAxisStatus(this.last_work);
-                        else if(this.last_machine.x !== null)
-                            this.publishAxisStatus(this.last_machine);
-                        else
-                            this.publishAxisStatus({"x":"x","y":"y","z":"z"});
-                    }
-                    
-                    //notify coords change for WCS widget
-                    chilipeppr.publish("/com-chilipeppr-interface-cnccontroller/coords",{coord:msg_array[1], coordNum: parseInt(msg_array[1].replace("G",""))});
-                    
-                    $('.stat-motion').html(this.gcode_lookup[msg_array[0]]);
-                    $('.stat-wcs').html(this.gcode_lookup[msg_array[1]]);
-                    $('.stat-plane').html(this.gcode_lookup[msg_array[2]]);
-                    $('.stat-distance').html(this.gcode_lookup[msg_array[4]]);
-                    $('.stat-units').html(this.gcode_lookup[msg_array[3]]);
-                    $('.stat-spindle').html(this.gcode_lookup[msg_array[7]]);
-                    $('.stat-coolant').html(this.gcode_lookup[msg_array[8]]);
-                    msg_array[10] = parseFloat(msg_array[10].substring(1));
-                    $('.stat-feedrate').html(this.controller_units === "inch" ? (parseFloat(msg_array[10])/25.4).toFixed(2) : msg_array[10].toFixed(2));  
+					});
                 }
             }
         },
