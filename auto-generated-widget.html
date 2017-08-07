@@ -328,7 +328,7 @@ cpdefine("inline:com-chilipeppr-widget-grbl-smoothie", ["chilipeppr_ready", "jqu
                 chilipeppr.publish('/com-chilipeppr-interface-cnccontroller/plannerresume', "");
             });
 
-            $('#com-chilipeppr-widget-grbl-btnoptions').click(this.showConfigModal.bind(this));
+          //  $('#com-chilipeppr-widget-grbl-btnoptions').click(this.showConfigModal.bind(this));
             
             $('#com-chilipeppr-widget-grbl-smoothie .btn-toolbar .btn').popover({
                 delay: 500,
@@ -633,7 +633,7 @@ cpdefine("inline:com-chilipeppr-widget-grbl-smoothie", ["chilipeppr_ready", "jqu
                     //action check mode off
                     chilipeppr.publish("/com-chilipeppr-elem-flashmsg/flashmsg", "Smoothie Widget", "SmoothieBoard is now in active run mode.");
                 }
-                else if(msg.search(/^\[/g) >= 0 && msg.indexOf(":") < 0){ //some config information is being returned - figure out what.
+                else if(msg.search(/^\[/g) >= 0 && msg.indexOf(":") < 0){ //some modal information is being returned - figure out what.
                     //example [G0 G54 G17 G21 G90 G94 M0 M5 M9 T0 F2000.0000 S0.8000]
                    
 					$.each(this.gCodeModalStates, function(key, value){
