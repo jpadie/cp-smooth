@@ -1,5 +1,5 @@
 // Test this element. This code is auto-removed by the chilipeppr.load()
-cprequire_test(["inline:com-chilipeppr-widget-grbl"], function (grbl) {
+cprequire_test(["inline:com-chilipeppr-widget-grbl-smoothie"], function (grbl) {
     //console.log("test running of " + grbl.id);
     grbl.init();
     //testRecvline();
@@ -42,7 +42,7 @@ cprequire_test(["inline:com-chilipeppr-widget-grbl"], function (grbl) {
 
 function Queue(){var e=[];var t=0;this.getLength=function(){return e.length-t};this.isEmpty=function(){return e.length==0};this.enqueue=function(t){e.push(t)};this.dequeue=function(){if(e.length==0)return undefined;var n=e[t];if(++t*2>=e.length){e=e.slice(t);t=0}return n};this.peek=function(){return e.length>0?e[t]:undefined};this.sum=function(){for(var t=0,n=0;t<e.length;n+=e[t++]);return n};this.last=function(){return e[e.length-1]}}
 
-cpdefine("inline:com-chilipeppr-widget-grbl", ["chilipeppr_ready", "jquerycookie"], function () {
+cpdefine("inline:com-chilipeppr-widget-grbl-smoothie", ["chilipeppr_ready", "jquerycookie"], function () {
     return {
         id: "com-chilipeppr-widget-grbl-smoothie",
         implements: { 
